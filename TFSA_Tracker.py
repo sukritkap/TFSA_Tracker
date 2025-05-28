@@ -27,7 +27,7 @@ def load_data():
     response = supabase.table("contributions").select("*").execute()
     if response.data:
         df = pd.DataFrame(response.data)
-        df["Date"] = pd.to_datetime(df["date"])
+        df["Date"] = pd.to_datetime(df["date"], errors="coerce")
         df["Institution"] = df["institution"]
         df["Amount"] = df["amount"]
         return df[["Date", "Institution", "Amount"]]
@@ -133,6 +133,8 @@ with st.form("Add Transaction"):
 
 # Load and format data
 df = load_data()
+df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+df = df.dropna(subset=["Date"])
 df["Year"] = df["Date"].dt.year
 df.sort_values("Date", ascending=False, inplace=True)
 
