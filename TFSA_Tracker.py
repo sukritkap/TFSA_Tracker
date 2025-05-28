@@ -24,35 +24,45 @@ TFSA_LIMITS = {
 # ---------------------
 # Supabase Data Functions
 def load_data():
-    response = supabase.table("contributions").select("*").execute()
-    if response.data:
-        df = pd.DataFrame(response.data)
-        df["date"] = pd.to_datetime(df["date"], errors="coerce")
-        df["institution"] = df["institution"]
-        df["amount"] = df["amount"]
-        return df[["date", "institution", "amount"]]
-    return pd.DataFrame(columns=["date", "institution", "amount"])
+    resp = supabase.table("contributions") \
+                     .select("*") \
+                     .eq("user_email", user_email) \
+                     .execute()
+    data = resp.data or []
+    df = pd.DataFrame(data)
+    if not df.empty:
+        df["Date"] = pd.to_datetime(df["date"])
+        df["Institution"] = df["institution"]
+        df["Amount"] = df["amount"]
+        return df[["id","Date","Institution","Amount"]]
+    return df
 
 def save_row(date, institution, amount):
-    try:
-        response = supabase.table("contributions").insert({
-            "date": date.isoformat(),  # Convert to ISO string
-            "institution": institution,
-            "amount": float(amount)    # Ensure numeric
-        }).execute()
-        print("Insert response:", response)
-    except Exception as e:
-        st.error(f"❌ Insert failed: {e}")
-        raise
-def delete_row(date, institution, amount):
-    supabase.table("contributions").delete().match({
-        "date": str(date),
+    payload = {
+        "user_email": user_email,            # ← include here
+        "date":      date.isoformat(),
         "institution": institution,
-        "amount": amount
-    }).execute()
+        "amount":    float(amount)
+    }
+    try:
+        response = supabase.table("contributions").insert(payload).execute()
+        st.write("Insert succeeded:", response)
+    except Exception as e:
+        st.error(f"Insert failed: {e}")
+        st.error(f"Payload was: {payload}")
+        raise
+def delete_row(row_id):
+    supabase.table("contributions") \
+            .delete() \
+            .eq("id", row_id) \
+            .eq("user_email", user_email) \
+            .execute()
 
 def clear_all_data():
-    supabase.table("contributions").delete().neq("id", "").execute()
+    supabase.table("contributions") \
+            .delete() \
+            .eq("user_email", user_email) \
+            .execute()
 
 # ---------------------
 # Helper Functions
