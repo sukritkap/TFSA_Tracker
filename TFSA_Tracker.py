@@ -34,12 +34,16 @@ def load_data():
     return pd.DataFrame(columns=["Date", "Institution", "Amount"])
 
 def save_row(date, institution, amount):
-    supabase.table("contributions").insert({
-        "date": str(date),
-        "institution": institution,
-        "amount": amount
-    }).execute()
-
+    try:
+        response = supabase.table("contributions").insert({
+            "Date": date,
+            "Institution": institution,
+            "Amount": amount
+        }).execute()
+        print("Insert response:", response)
+    except Exception as e:
+        st.error(f"❌ Insert failed: {e}")
+        raise
 def delete_row(date, institution, amount):
     supabase.table("contributions").delete().match({
         "date": str(date),
