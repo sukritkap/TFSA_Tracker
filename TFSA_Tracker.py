@@ -153,16 +153,16 @@ with st.form("Add Transaction"):
 
 # Load and format data
 df = load_data()
-df["date"] = pd.to_datetime(df["date"], errors="coerce")
-df = df.dropna(subset=["date"])
-df["year"] = df["date"].dt.year
-df.sort_values("date", ascending=False, inplace=True)
+df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+df = df.dropna(subset=["Date"])
+df["Year"] = df["Date"].dt.year
+df.sort_values("Date", ascending=False, inplace=True)
 
 current_year = datetime.datetime.now().year
 
 # Contribution logic
-deposits_by_year = df[df["amount"] > 0].groupby("year")["amount"].sum()
-withdrawals_by_year = df[df["amount"] < 0].groupby("year")["amount"].sum().abs()
+deposits_by_year = df[df["Amount"] > 0].groupby("Year")["Amount"].sum()
+withdrawals_by_year = df[df["Amount"] < 0].groupby("Year")["Amount"].sum().abs()
 
 room_used = 0
 carry_forward = 0
