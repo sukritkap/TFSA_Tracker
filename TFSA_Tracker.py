@@ -24,18 +24,23 @@ TFSA_LIMITS = {
 # ---------------------
 # Supabase Data Functions
 def load_data():
-    resp = supabase.table("contributions") \
-                     .select("*") \
-                     .eq("user_email", user_email) \
-                     .execute()
+    resp = (supabase
+            .table("contributions")
+            .select("*")
+            .eq("user_email", user_email)
+            .execute())
+
     data = resp.data or []
+    if not data:
+        # return an empty DataFrame with the right columns
+        return pd.DataFrame(columns=["id","Date","Institution","Amount"])
+
     df = pd.DataFrame(data)
-    if not df.empty:
-        df["Date"] = pd.to_datetime(df["date"])
-        df["Institution"] = df["institution"]
-        df["Amount"] = df["amount"]
-        return df[["id","Date","Institution","Amount"]]
-    return df
+    # map your columns
+    df["Date"]        = pd.to_datetime(df["date"])
+    df["Institution"] = df["institution"]
+    df["Amount"]      = df["amount"]
+    return df[["id","Date","Institution","Amount"]]
 
 def save_row(date, institution, amount):
     payload = {
@@ -152,9 +157,6 @@ with st.form("Add Transaction"):
 
 # Load and format data
 df = load_data()
-if df.empty:
-    st.info("No transactions yet — use the form above to add one.")
-    st.stop()
 df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
 df = df.dropna(subset=["Date"])
 df["Year"] = df["Date"].dt.year
