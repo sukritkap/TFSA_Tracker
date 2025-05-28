@@ -49,7 +49,6 @@ def save_row(date, institution, amount):
         st.write("Insert succeeded:", response)
     except Exception as e:
         st.error(f"Insert failed: {e}")
-        st.error(f"Payload was: {payload}")
         raise
 def delete_row(row_id):
     supabase.table("contributions") \
@@ -146,7 +145,11 @@ with st.form("Add Transaction"):
         signed_amount = amount if transaction_type == "Deposit" else -amount
         save_row(date, institution, signed_amount)
         st.success(f"{transaction_type} recorded!")
-        st.experimental_rerun()
+        try:
+         st.experimental_rerun()
+        except AttributeError:
+    # Older Streamlit version—just stop here
+         st.stop()
 
 # Load and format data
 df = load_data()
