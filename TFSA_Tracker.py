@@ -124,10 +124,10 @@ def draw_contribution_bar_plotly(contributed, limit, withdrawal):
 
 # ---------------------
 # Main App
+st.set_page_config(page_title="TFSA Tracker", layout="centered")
 user_email = st.text_input("Enter your email to load your TFSA data")
 if not user_email:
     st.stop()
-st.set_page_config(page_title="TFSA Tracker", layout="centered")
 st.title("TFSA Contribution Tracker")
 
 start_year = st.selectbox("What year did you become eligible for TFSA?", list(TFSA_LIMITS.keys()))
