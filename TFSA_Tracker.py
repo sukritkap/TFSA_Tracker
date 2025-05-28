@@ -45,8 +45,7 @@ def save_row(date, institution, amount):
         "amount":    float(amount)
     }
     try:
-        response = supabase.table("contributions").insert(payload).execute()
-        st.write("Insert succeeded:", response)
+        st.write("Insert succeeded:")
     except Exception as e:
         st.error(f"Insert failed: {e}")
         raise
