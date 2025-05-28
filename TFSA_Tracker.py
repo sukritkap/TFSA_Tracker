@@ -44,15 +44,24 @@ def load_data():
 
 def save_row(date, institution, amount):
     payload = {
-        "user_email": user_email,            # ← include here
-        "date":      date.isoformat(),
+        "user_email": user_email,
+        "date":       date.isoformat(),
         "institution": institution,
-        "amount":    float(amount)
+        "amount":     float(amount)
     }
     try:
-        st.write("Insert succeeded:")
+        # actually insert into Supabase
+        resp = supabase.table("contributions").insert(payload).execute()
+        st.success("✅ Transaction recorded!")
+        # immediately rerun so load_data() will fetch the new row
+        try:
+            st.experimental_rerun()
+        except AttributeError:
+            # older Streamlit: fall back to stopping
+            st.stop()
     except Exception as e:
-        st.error(f"Insert failed: {e}")
+        st.error(f"❌ Insert failed: {e}")
+        st.error(f"Payload was: {payload}")
         raise
 def delete_row(row_id):
     supabase.table("contributions") \
@@ -139,21 +148,16 @@ st.write(f"Your total TFSA room based on CRA limits: **${limit:,}**")
 
 # Form to add contribution
 with st.form("Add Transaction"):
-    date = st.date_input("Date", value=datetime.date.today())
-    transaction_type = st.selectbox("Transaction Type", ["Deposit", "Withdrawal"])
-    institution = st.text_input("Institution", "Wealthsimple")
-    amount = st.number_input("Amount ($)", min_value=0.0, step=100.0)
-    submitted = st.form_submit_button("Add")
+    date = st.date_input("Date", datetime.date.today())
+    transaction_type = st.selectbox("Type", ["Deposit", "Withdrawal"])
+    institution    = st.text_input("Institution", "Wealthsimple")
+    amount         = st.number_input("Amount ($)", min_value=0.0, step=100.0)
+    submitted      = st.form_submit_button("Add")
 
     if submitted:
         signed_amount = amount if transaction_type == "Deposit" else -amount
         save_row(date, institution, signed_amount)
-        st.success(f"{transaction_type} recorded!")
-        try:
-         st.experimental_rerun()
-        except AttributeError:
-    # Older Streamlit version—just stop here
-         st.stop()
+        # No further st.stop() here; save_row handles the rerun/stop.
 
 # Load and format data
 df = load_data()
