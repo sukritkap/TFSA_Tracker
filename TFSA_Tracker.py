@@ -152,6 +152,9 @@ with st.form("Add Transaction"):
 
 # Load and format data
 df = load_data()
+if df.empty:
+    st.info("No transactions yet — use the form above to add one.")
+    st.stop()
 df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
 df = df.dropna(subset=["Date"])
 df["Year"] = df["Date"].dt.year
