@@ -164,10 +164,10 @@ st.subheader("Contribution Overview")
 draw_contribution_bar_plotly(room_used, limit, withdrawals_by_year.sum())
 
 if room_used > limit:
-    st.error("\u26a0\ufe0f You have OVER-CONTRIBUTED to your TFSA")
+    st.error("You have OVER-CONTRIBUTED to your TFSA")
 
 # Show transaction table
-st.subheader("\ud83d\udcc4 All Transactions")
+st.subheader("All Transactions")
 st.dataframe(df[["Date", "Institution", "Amount"]])
 
 # Deletion options
