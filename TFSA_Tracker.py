@@ -193,14 +193,22 @@ st.dataframe(df[["Date", "Institution", "Amount"]])
 # Deletion options
 if not df.empty:
     delete_row_label = st.selectbox("Select a transaction to delete", df.apply(lambda row: f"{row['Date'].date()} - {row['Institution']} - ${row['Amount']}", axis=1))
-    if st.button("\ud83d\udd1a\ufe0f Delete Selected Row"):
+    if st.button("Delete Selected Row"):
         selected = df[df.apply(lambda row: f"{row['Date'].date()} - {row['Institution']} - ${row['Amount']}", axis=1) == delete_row_label]
         if not selected.empty:
             delete_row(selected.iloc[0]["Date"], selected.iloc[0]["Institution"], selected.iloc[0]["Amount"])
             st.success("Selected row deleted.")
-            st.experimental_rerun()
+            try:
+             st.experimental_rerun()
+            except AttributeError:
+    # Older Streamlit version—just stop here
+             st.stop()
 
     if st.button("\u274c Clear All Data"):
         clear_all_data()
         st.success("All data cleared!")
-        st.experimental_rerun()
+        try:
+         st.experimental_rerun()
+        except AttributeError:
+    # Older Streamlit version—just stop here
+         st.stop()
