@@ -1,9 +1,14 @@
-﻿import streamlit as st
+import streamlit as st
 import pandas as pd
 import datetime
 import plotly.graph_objects as go
+from supabase import create_client, Client
 
-st.set_page_config(page_title="TFSA Tracker", layout="centered")
+# ---------------------
+# Supabase Configuration
+SUPABASE_URL = "https://your-project.supabase.co"
+SUPABASE_KEY = "your-anon-or-service-role-key"
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # ---------------------
 # Define annual TFSA limits
@@ -17,19 +22,39 @@ TFSA_LIMITS = {
 }
 
 # ---------------------
-# Helper functions
+# Supabase Data Functions
+def load_data():
+    response = supabase.table("contributions").select("*").execute()
+    if response.data:
+        df = pd.DataFrame(response.data)
+        df["Date"] = pd.to_datetime(df["date"])
+        df["Institution"] = df["institution"]
+        df["Amount"] = df["amount"]
+        return df[["Date", "Institution", "Amount"]]
+    return pd.DataFrame(columns=["Date", "Institution", "Amount"])
+
+def save_row(date, institution, amount):
+    supabase.table("contributions").insert({
+        "date": str(date),
+        "institution": institution,
+        "amount": amount
+    }).execute()
+
+def delete_row(date, institution, amount):
+    supabase.table("contributions").delete().match({
+        "date": str(date),
+        "institution": institution,
+        "amount": amount
+    }).execute()
+
+def clear_all_data():
+    supabase.table("contributions").delete().neq("id", "").execute()
+
+# ---------------------
+# Helper Functions
 def get_total_limit(start_year):
     current_year = datetime.datetime.now().year
     return sum([TFSA_LIMITS.get(y, 0) for y in range(start_year, current_year + 1)])
-
-def load_data():
-    try:
-        return pd.read_csv("contributions.csv")
-    except:
-        return pd.DataFrame(columns=["Date", "Institution", "Amount"])
-
-def save_data(df):
-    df.to_csv("contributions.csv", index=False)
 
 def draw_contribution_bar_plotly(contributed, limit, withdrawal):
     percent_used = (contributed / limit) * 100 if limit > 0 else 0
@@ -37,7 +62,6 @@ def draw_contribution_bar_plotly(contributed, limit, withdrawal):
 
     fig = go.Figure()
 
-    # Grey background (total room)
     fig.add_trace(go.Bar(
         x=["TFSA Room"],
         y=[limit],
@@ -48,7 +72,6 @@ def draw_contribution_bar_plotly(contributed, limit, withdrawal):
         hoverinfo='skip'
     ))
 
-    # Red bar (contributed)
     fig.add_trace(go.Bar(
         x=["TFSA Room"],
         y=[contributed],
@@ -71,7 +94,6 @@ def draw_contribution_bar_plotly(contributed, limit, withdrawal):
         margin=dict(l=40, r=20, t=40, b=40)
     )
 
-    # Split chart and info in two columns
     col1, col2 = st.columns([2, 1])
     with col1:
         st.plotly_chart(fig, use_container_width=True)
@@ -87,14 +109,15 @@ def draw_contribution_bar_plotly(contributed, limit, withdrawal):
         """, unsafe_allow_html=True)
 
 # ---------------------
-# Main app
+# Main App
+st.set_page_config(page_title="TFSA Tracker", layout="centered")
 st.title("TFSA Contribution Tracker")
 
 start_year = st.selectbox("What year did you become eligible for TFSA?", list(TFSA_LIMITS.keys()))
 limit = get_total_limit(start_year)
 st.write(f"Your total TFSA room based on CRA limits: **${limit:,}**")
 
-# Form to add contributions
+# Form to add contribution
 with st.form("Add Transaction"):
     date = st.date_input("Date", value=datetime.date.today())
     transaction_type = st.selectbox("Transaction Type", ["Deposit", "Withdrawal"])
@@ -103,21 +126,17 @@ with st.form("Add Transaction"):
     submitted = st.form_submit_button("Add")
 
     if submitted:
-        df = load_data()
         signed_amount = amount if transaction_type == "Deposit" else -amount
-        new_row = {"Date": date, "Institution": institution, "Amount": signed_amount}
-        df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
-        save_data(df)
+        save_row(date, institution, signed_amount)
         st.success(f"{transaction_type} recorded!")
+        st.experimental_rerun()
 
 # Load and format data
 df = load_data()
-df["Date"] = pd.to_datetime(df["Date"])
 df["Year"] = df["Date"].dt.year
 df.sort_values("Date", ascending=False, inplace=True)
 
 current_year = datetime.datetime.now().year
-
 
 # Contribution logic
 deposits_by_year = df[df["Amount"] > 0].groupby("Year")["Amount"].sum()
@@ -143,25 +162,23 @@ st.subheader("Contribution Overview")
 draw_contribution_bar_plotly(room_used, limit, withdrawals_by_year.sum())
 
 if room_used > limit:
-    st.error("⚠️ You have OVER-CONTRIBUTED to your TFSA")
+    st.error("\u26a0\ufe0f You have OVER-CONTRIBUTED to your TFSA")
 
-# Show table
-st.subheader("📄 All Transactions")
+# Show transaction table
+st.subheader("\ud83d\udcc4 All Transactions")
 st.dataframe(df[["Date", "Institution", "Amount"]])
 
-# Add deletion options
-
+# Deletion options
 if not df.empty:
-    
+    delete_row_label = st.selectbox("Select a transaction to delete", df.apply(lambda row: f"{row['Date'].date()} - {row['Institution']} - ${row['Amount']}", axis=1))
+    if st.button("\ud83d\udd1a\ufe0f Delete Selected Row"):
+        selected = df[df.apply(lambda row: f"{row['Date'].date()} - {row['Institution']} - ${row['Amount']}", axis=1) == delete_row_label]
+        if not selected.empty:
+            delete_row(selected.iloc[0]["Date"], selected.iloc[0]["Institution"], selected.iloc[0]["Amount"])
+            st.success("Selected row deleted.")
+            st.experimental_rerun()
 
-    delete_row = st.selectbox("Select a transaction to delete", df.apply(lambda row: f"{row['Date'].date()} - {row['Institution']} - ${row['Amount']}", axis=1))
-    if st.button("🗑️ Delete Selected Row"):
-        idx_to_delete = df.index[df.apply(lambda row: f"{row['Date'].date()} - {row['Institution']} - ${row['Amount']}", axis=1) == delete_row][0]
-        df = df.drop(index=idx_to_delete).reset_index(drop=True)
-        save_data(df)
-        st.success("Selected row deleted.")
-        st.stop()
-    if st.button("❌ Clear All Data"):
-        save_data(pd.DataFrame(columns=["Date", "Institution", "Amount"]))
+    if st.button("\u274c Clear All Data"):
+        clear_all_data()
         st.success("All data cleared!")
-        st.stop()    
+        st.experimental_rerun()
