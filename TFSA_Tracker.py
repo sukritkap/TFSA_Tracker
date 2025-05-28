@@ -36,9 +36,9 @@ def load_data():
 def save_row(date, institution, amount):
     try:
         response = supabase.table("contributions").insert({
-            "Date": date,
+            "Date": date.isoformat(),  # Convert to ISO string
             "Institution": institution,
-            "Amount": amount
+            "Amount": float(amount)    # Ensure numeric
         }).execute()
         print("Insert response:", response)
     except Exception as e:
