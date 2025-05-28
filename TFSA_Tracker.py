@@ -27,18 +27,18 @@ def load_data():
     response = supabase.table("contributions").select("*").execute()
     if response.data:
         df = pd.DataFrame(response.data)
-        df["Date"] = pd.to_datetime(df["date"], errors="coerce")
-        df["Institution"] = df["institution"]
-        df["Amount"] = df["amount"]
-        return df[["Date", "Institution", "Amount"]]
-    return pd.DataFrame(columns=["Date", "Institution", "Amount"])
+        df["date"] = pd.to_datetime(df["date"], errors="coerce")
+        df["institution"] = df["institution"]
+        df["amount"] = df["amount"]
+        return df[["date", "institution", "amount"]]
+    return pd.DataFrame(columns=["date", "institution", "amount"])
 
 def save_row(date, institution, amount):
     try:
         response = supabase.table("contributions").insert({
-            "Date": date.isoformat(),  # Convert to ISO string
-            "Institution": institution,
-            "Amount": float(amount)    # Ensure numeric
+            "date": date.isoformat(),  # Convert to ISO string
+            "institution": institution,
+            "amount": float(amount)    # Ensure numeric
         }).execute()
         print("Insert response:", response)
     except Exception as e:
@@ -137,16 +137,16 @@ with st.form("Add Transaction"):
 
 # Load and format data
 df = load_data()
-df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
-df = df.dropna(subset=["Date"])
-df["Year"] = df["Date"].dt.year
-df.sort_values("Date", ascending=False, inplace=True)
+df["date"] = pd.to_datetime(df["date"], errors="coerce")
+df = df.dropna(subset=["date"])
+df["year"] = df["date"].dt.year
+df.sort_values("date", ascending=False, inplace=True)
 
 current_year = datetime.datetime.now().year
 
 # Contribution logic
-deposits_by_year = df[df["Amount"] > 0].groupby("Year")["Amount"].sum()
-withdrawals_by_year = df[df["Amount"] < 0].groupby("Year")["Amount"].sum().abs()
+deposits_by_year = df[df["amount"] > 0].groupby("year")["amount"].sum()
+withdrawals_by_year = df[df["amount"] < 0].groupby("year")["amount"].sum().abs()
 
 room_used = 0
 carry_forward = 0
