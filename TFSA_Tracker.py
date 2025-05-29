@@ -213,7 +213,7 @@ if st.button("Delete Selected Row"):
     except AttributeError:
         st.stop()
 
-    if st.button("Clear All Data"):
+ if st.button("Clear All Data"):
         clear_all_data()
         st.success("All data cleared!")
         try:
