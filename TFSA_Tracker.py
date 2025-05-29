@@ -1,5 +1,4 @@
 import streamlit as st
-st.write("Streamlit version:", st.__version__)
 import pandas as pd
 import datetime
 import plotly.graph_objects as go
@@ -54,12 +53,8 @@ def save_row(date, institution, amount):
         # actually insert into Supabase
         resp = supabase.table("contributions").insert(payload).execute()
         st.success("✅ Transaction recorded!")
-        # immediately rerun so load_data() will fetch the new row
-        try:
-            st.experimental_rerun()
-        except AttributeError:
-            # older Streamlit: fall back to stopping
-            st.stop()
+        st.experimental_rerun()
+        
     except Exception as e:
         st.error(f"❌ Insert failed: {e}")
         st.error(f"Payload was: {payload}")
