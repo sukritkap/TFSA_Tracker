@@ -165,7 +165,7 @@ with st.form("Add Transaction"):
         signed_amount = amount if transaction_type == "Deposit" else -amount
         save_row(date, institution, signed_amount)
         # No further st.stop() here; save_row handles the rerun/stop.
-st_autorefresh(interval=3_0000, limit=None, key="datarefresher")
+
 # Load and format data
 df = load_data()
 df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
@@ -221,6 +221,7 @@ if st.button("Delete Selected Row"):
     ].iloc[0]
     delete_row(row["id"])
     st.success("Deleted!")
+    st_autorefresh(interval=3_0000, limit=None, key="datarefresher")
     
 
 # Clear all data (now at top‐level, not inside the delete block)
@@ -228,3 +229,4 @@ if st.button("Clear All Data"):
     clear_all_data()
     st.success("All data cleared!")
     
+st_autorefresh(interval=3_0000, limit=None, key="datarefresher")
