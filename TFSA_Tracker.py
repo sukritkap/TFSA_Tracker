@@ -204,20 +204,26 @@ if not df.empty:
     "Select a transaction to delete",
     df.apply(lambda r: f"{r['Date'].date()} – {r['Institution']} – ${r['Amount']}", axis=1)
 )
+# Delete one row
 if st.button("Delete Selected Row"):
-    row = df[df.apply(lambda r: f"{r['Date'].date()} – {r['Institution']} – ${r['Amount']}", axis=1) == delete_label].iloc[0]
-    delete_row(row["id"])         # only pass the id
+    row = df[
+        df.apply(
+            lambda r: f"{r['Date'].date()} – {r['Institution']} – ${r['Amount']}",
+            axis=1
+        ) == delete_label
+    ].iloc[0]
+    delete_row(row["id"])
     st.success("Deleted!")
     try:
         st.experimental_rerun()
     except AttributeError:
         st.stop()
 
- if st.button("Clear All Data"):
-        clear_all_data()
-        st.success("All data cleared!")
-        try:
-         st.experimental_rerun()
-        except AttributeError:
-    # Older Streamlit version—just stop here
-         st.stop()
+# Clear all data (now at top‐level, not inside the delete block)
+if st.button("Clear All Data"):
+    clear_all_data()
+    st.success("All data cleared!")
+    try:
+        st.experimental_rerun()
+    except AttributeError:
+        st.stop()
