@@ -3,6 +3,7 @@ import pandas as pd
 import datetime
 import plotly.graph_objects as go
 from supabase import create_client, Client
+from streamlit_autorefresh import st_autorefresh
 
 # ---------------------
 # Supabase Configuration
@@ -53,7 +54,7 @@ def save_row(date, institution, amount):
         # actually insert into Supabase
         resp = supabase.table("contributions").insert(payload).execute()
         st.success("✅ Transaction recorded!")
-        st.experimental_rerun()
+        
         
     except Exception as e:
         st.error(f"❌ Insert failed: {e}")
@@ -132,8 +133,18 @@ def draw_contribution_bar_plotly(contributed, limit, withdrawal):
 
 # ---------------------
 # Main App
+st_autorefresh(interval=5_000, limit=None, key="datarefresher")
 st.set_page_config(page_title="TFSA Tracker", layout="centered")
-user_email = st.text_input("Enter your email to load your TFSA data")
+if "user_email" not in st.session_state:
+    st.session_state.user_email = ""
+
+# Text input bound to session state
+user_email = st.text_input(
+    "Enter your email to load your TFSA data",
+    value=st.session_state.user_email
+)
+st.session_state.user_email = user_email
+
 if not user_email:
     st.stop()
 st.title("TFSA Contribution Tracker")
@@ -210,16 +221,10 @@ if st.button("Delete Selected Row"):
     ].iloc[0]
     delete_row(row["id"])
     st.success("Deleted!")
-    try:
-        st.experimental_rerun()
-    except AttributeError:
-        st.stop()
+    
 
 # Clear all data (now at top‐level, not inside the delete block)
 if st.button("Clear All Data"):
     clear_all_data()
     st.success("All data cleared!")
-    try:
-        st.experimental_rerun()
-    except AttributeError:
-        st.stop()
+    
