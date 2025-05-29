@@ -26,6 +26,21 @@ TFSA_LIMITS = {
 
 # ---------------------
 # Supabase Data Functions
+def load_start_year(email):
+    resp = (
+        supabase.table("user_settings")
+                 .select("start_year")
+                 .eq("user_email", email)
+                 .execute()
+    )
+    if resp.data:
+        return resp.data[0]["start_year"]
+    return 2009
+
+def save_start_year(email, year):
+    supabase.table("user_settings") \
+            .upsert({"user_email": email, "start_year": year}) \
+            .execute()
 def load_data():
     resp = (supabase
             .table("contributions")
@@ -147,6 +162,19 @@ st.session_state.user_email = user_email
 
 if not user_email:
     st.stop()
+init_year = load_start_year(user_email)
+years = list(TFSA_LIMITS.keys())
+default_idx = years.index(init_year) if init_year in years else 0
+
+start_year = st.selectbox(
+    "What year did you become eligible for TFSA?",
+    years,
+    index=default_idx
+)
+
+# only save if they actually changed it:
+if start_year != init_year:
+    save_start_year(user_email, start_year)
 st.title("TFSA Contribution Tracker")
 
 start_year = st.selectbox("What year did you become eligible for TFSA?", list(TFSA_LIMITS.keys()))
