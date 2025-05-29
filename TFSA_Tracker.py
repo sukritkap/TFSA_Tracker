@@ -1,4 +1,5 @@
 import streamlit as st
+st.write("Streamlit version:", st.__version__)
 import pandas as pd
 import datetime
 import plotly.graph_objects as go
