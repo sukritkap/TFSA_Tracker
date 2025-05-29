@@ -221,7 +221,7 @@ if st.button("Delete Selected Row"):
     ].iloc[0]
     delete_row(row["id"])
     st.success("Deleted!")
-    st_autorefresh(interval=3_0000, limit=None, key="datarefresher")
+    st_autorefresh(interval=3_0000, limit=None, key="datarefresher2")
     
 
 # Clear all data (now at top‐level, not inside the delete block)
