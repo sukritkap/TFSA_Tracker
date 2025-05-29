@@ -6,7 +6,6 @@ import plotly.graph_objects as go
 from supabase import create_client, Client
 from streamlit_autorefresh import st_autorefresh
 
-st_autorefresh(interval=3_0000, limit=None, key="datarefresher")
 
 # ---------------------
 # Supabase Configuration
@@ -166,7 +165,7 @@ with st.form("Add Transaction"):
         signed_amount = amount if transaction_type == "Deposit" else -amount
         save_row(date, institution, signed_amount)
         # No further st.stop() here; save_row handles the rerun/stop.
-
+st_autorefresh(interval=3_0000, limit=None, key="datarefresher")
 # Load and format data
 df = load_data()
 df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
