@@ -1,4 +1,5 @@
 import streamlit as st
+st.set_page_config(page_title="TFSA Tracker", layout="centered")
 import pandas as pd
 import datetime
 import plotly.graph_objects as go
@@ -135,7 +136,6 @@ def draw_contribution_bar_plotly(contributed, limit, withdrawal):
 
 # ---------------------
 # Main App
-st.set_page_config(page_title="TFSA Tracker", layout="centered")
 if "user_email" not in st.session_state:
     st.session_state.user_email = ""
 
