@@ -177,7 +177,7 @@ if start_year != init_year:
     save_start_year(user_email, start_year)
 st.title("TFSA Contribution Tracker")
 
-start_year = st.selectbox("What year did you become eligible for TFSA?", list(TFSA_LIMITS.keys()))
+
 limit = get_total_limit(start_year)
 st.write(f"Your total TFSA room based on CRA limits: **${limit:,}**")
 
