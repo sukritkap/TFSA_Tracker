@@ -5,6 +5,8 @@ import plotly.graph_objects as go
 from supabase import create_client, Client
 from streamlit_autorefresh import st_autorefresh
 
+st_autorefresh(interval=5_000, limit=None, key="datarefresher")
+
 # ---------------------
 # Supabase Configuration
 SUPABASE_URL = st.secrets["SUPABASE_URL"]
@@ -133,7 +135,6 @@ def draw_contribution_bar_plotly(contributed, limit, withdrawal):
 
 # ---------------------
 # Main App
-st_autorefresh(interval=5_000, limit=None, key="datarefresher")
 st.set_page_config(page_title="TFSA Tracker", layout="centered")
 if "user_email" not in st.session_state:
     st.session_state.user_email = ""
