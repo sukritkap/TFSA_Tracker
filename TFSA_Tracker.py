@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 from supabase import create_client, Client
 from streamlit_autorefresh import st_autorefresh
 
-st_autorefresh(interval=5_000, limit=None, key="datarefresher")
+st_autorefresh(interval=3_0000, limit=None, key="datarefresher")
 
 # ---------------------
 # Supabase Configuration
