@@ -1,0 +1,30 @@
+name: Keep Streamlit App Alive
+
+# Run daily (you can adjust the cron schedule as needed)
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # every day at midnight UTC
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Make an empty commit
+        run: |
+          git commit --allow-empty -m "chore: keep Streamlit app active"
+
+      - name: Push empty commit
+        # Use the provided GITHUB_TOKEN to push back to the same branch
+        run: |
+          git push origin HEAD:${{ github.ref_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
