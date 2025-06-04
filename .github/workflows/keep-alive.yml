@@ -1,18 +1,20 @@
 name: Keep Streamlit App Alive
 
-# Run daily (you can adjust the cron schedule as needed)
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 */6 * * *'  # every day at midnight UTC
+    - cron: '0 0 * * *'
 
 jobs:
   keep-alive:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check out repository
+      - name: Check out repository (using PAT)
         uses: actions/checkout@v4
+        with:
+          # tell checkout to use the PAT instead of GITHUB_TOKEN
+          token: ${{ secrets.PAT }}
 
       - name: Configure Git
         run: |
@@ -24,8 +26,8 @@ jobs:
           git commit --allow-empty -m "chore: keep Streamlit app active"
 
       - name: Push empty commit
-        # Use the provided GITHUB_TOKEN to push back to the same branch
         run: |
           git push origin HEAD:${{ github.ref_name }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Provide the PAT so git can authenticate
+          GITHUB_TOKEN: ${{ secrets.PAT }}
