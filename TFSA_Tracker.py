@@ -1,13 +1,11 @@
-
 import streamlit as st
-st.set_page_config(page_title="TFSA Tracker", layout="centered")
 import pandas as pd
 import datetime
 import plotly.graph_objects as go
 from supabase import create_client, Client
 from streamlit_autorefresh import st_autorefresh
 
-
+st.set_page_config(page_title="TFSA Tracker", layout="centered")
 # ---------------------
 # Supabase Configuration
 SUPABASE_URL = st.secrets["SUPABASE_URL"]
@@ -258,5 +256,3 @@ if st.button("Clear All Data"):
     clear_all_data()
     st.success("All data cleared!")
     st_autorefresh(interval=1_000, limit=None, key="datarefresher3")
-    
-
