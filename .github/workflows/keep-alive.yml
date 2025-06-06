@@ -1,22 +1,24 @@
 name: Keep Streamlit App Alive
 
-on:
-  # Manual trigger
-  workflow_dispatch:
+# 1️⃣ Give the workflow write permission to repo contents
+permissions:
+  contents: write
 
-  # Daily scheduled trigger (adjust cron as needed)
+on:
+  workflow_dispatch:
   schedule:
-    - cron: '0 0 * * *'
+    - cron: '0 0 * * *'  # daily at midnight UTC
 
 jobs:
   keep-alive:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check out repository (full history)
+      - name: Check out repository (with full history & write creds)
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0            # fetch all commits so we can pull
+          fetch-depth: 0            # fetch all commits so we can fast-forward
+          persist-credentials: true  # use GITHUB_TOKEN for pushes
 
       - name: Configure Git
         run: |
@@ -25,7 +27,7 @@ jobs:
 
       - name: Ensure up-to-date with remote
         run: |
-          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+          # Pull any new commits so our empty commit is a fast-forward
           git pull --ff-only
 
       - name: Make an empty commit
@@ -35,5 +37,4 @@ jobs:
       - name: Push empty commit
         run: |
           git push origin HEAD:${{ github.ref_name }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # GITHUB_TOKEN is automatically used (persist-credentials: true)
