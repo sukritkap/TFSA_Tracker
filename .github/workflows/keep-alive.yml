@@ -1,24 +1,32 @@
 name: Keep Streamlit App Alive
 
 on:
+  # Manual trigger
+  workflow_dispatch:
+
+  # Daily scheduled trigger (adjust cron as needed)
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '0 0 * * *'
 
 jobs:
   keep-alive:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Check out repository (using PAT)
+      - name: Check out repository (full history)
         uses: actions/checkout@v4
         with:
-          # tell checkout to use the PAT instead of GITHUB_TOKEN
-          token: ${{ secrets.PAT }}
+          fetch-depth: 0            # fetch all commits so we can pull
 
       - name: Configure Git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Ensure up-to-date with remote
+        run: |
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+          git pull --ff-only
 
       - name: Make an empty commit
         run: |
@@ -28,5 +36,4 @@ jobs:
         run: |
           git push origin HEAD:${{ github.ref_name }}
         env:
-          # Provide the PAT so git can authenticate
-          GITHUB_TOKEN: ${{ secrets.PAT }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
