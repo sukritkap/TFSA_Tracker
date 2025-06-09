@@ -13,7 +13,6 @@ st.set_page_config(page_title="TFSA Tracker", layout="centered")
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-st.write("Using Supabase URL:", SUPABASE_URL)
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # ---------------------
