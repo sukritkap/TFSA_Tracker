@@ -1,4 +1,5 @@
 import streamlit as st
+import os
 import pandas as pd
 import datetime
 import plotly.graph_objects as go
@@ -8,8 +9,10 @@ from streamlit_autorefresh import st_autorefresh
 st.set_page_config(page_title="TFSA Tracker", layout="centered")
 # ---------------------
 # Supabase Configuration
-SUPABASE_URL = st.secrets["SUPABASE_URL"]
-SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
+
+
+SUPABASE_URL = os.environ["SUPABASE_URL"]
+SUPABASE_KEY = os.environ["SUPABASE_KEY"]
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # ---------------------
