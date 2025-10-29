@@ -159,7 +159,7 @@ if "user_email" not in st.session_state:
 user_email = st.text_input(
     "Enter your email to load your TFSA data",
     value=st.session_state.user_email
-)
+).strip().lower()
 st.session_state.user_email = user_email
 
 if not user_email:
@@ -259,3 +259,4 @@ if st.button("Clear All Data"):
     clear_all_data()
     st.success("All data cleared!")
     st_autorefresh(interval=1_000, limit=None, key="datarefresher3")
+
