@@ -1,37 +1,43 @@
-import streamlit as st
-import os
-import pandas as pd
 import datetime
-import plotly.graph_objects as go
-from supabase import create_client, Client
-from streamlit_autorefresh import st_autorefresh
+import os
 
-st.set_page_config(page_title="TFSA Tracker", layout="centered")
-# ---------------------
-# Supabase Configuration
+import pandas as pd
+import plotly.graph_objects as go
+import streamlit as st
+from supabase import Client, create_client
+
+st.set_page_config(page_title="TFSA Tracker", layout="wide")
 
 
 SUPABASE_URL = os.environ["SUPABASE_URL"].strip()
 SUPABASE_KEY = os.environ["SUPABASE_KEY"].strip()
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# ---------------------
-# Define annual TFSA limits published by CRA.
-# For years not yet listed here, we reuse the latest known limit so the app
-# continues to roll forward automatically without requiring a code change.
+# Annual TFSA limits published by CRA.
+# For years not yet listed here, reuse the latest known limit.
 TFSA_LIMITS = {
-    2009: 5000, 2010: 5000, 2011: 5000,
-    2012: 5000, 2013: 5500, 2014: 5500,
-    2015: 10000, 2016: 5500, 2017: 5500,
-    2018: 5500, 2019: 6000, 2020: 6000,
-    2021: 6000, 2022: 6000, 2023: 6500,
-    2024: 7000, 2025: 7000
+    2009: 5000,
+    2010: 5000,
+    2011: 5000,
+    2012: 5000,
+    2013: 5500,
+    2014: 5500,
+    2015: 10000,
+    2016: 5500,
+    2017: 5500,
+    2018: 5500,
+    2019: 6000,
+    2020: 6000,
+    2021: 6000,
+    2022: 6000,
+    2023: 6500,
+    2024: 7000,
+    2025: 7000,
 }
-
 BASE_TFSA_YEAR = min(TFSA_LIMITS.keys())
 
 
-def get_tfsa_limit_for_year(year):
+def get_tfsa_limit_for_year(year: int) -> int:
     if year in TFSA_LIMITS:
         return TFSA_LIMITS[year]
     if year > max(TFSA_LIMITS.keys()):
@@ -39,236 +45,249 @@ def get_tfsa_limit_for_year(year):
         return TFSA_LIMITS[latest_known_year]
     return 0
 
-# ---------------------
-# Supabase Data Functions
-def load_start_year(email):
+
+def load_start_year(email: str) -> int:
     resp = (
         supabase.table("user_settings")
-                 .select("start_year")
-                 .eq("user_email", email)
-                 .execute()
+        .select("start_year")
+        .eq("user_email", email)
+        .execute()
     )
     if resp.data:
         return resp.data[0]["start_year"]
     return 2009
 
-def save_start_year(email, year):
-    supabase.table("user_settings") \
-            .upsert({"user_email": email, "start_year": year}) \
-            .execute()
-def load_data():
-    resp = (supabase
-            .table("contributions")
-            .select("*")
-            .eq("user_email", user_email)
-            .execute())
 
+def save_start_year(email: str, year: int) -> None:
+    supabase.table("user_settings").upsert(
+        {"user_email": email, "start_year": year}
+    ).execute()
+
+
+def load_data(email: str) -> pd.DataFrame:
+    resp = supabase.table("contributions").select("*").eq("user_email", email).execute()
     data = resp.data or []
+
     if not data:
-        # return an empty DataFrame with the right columns
-        return pd.DataFrame(columns=["id","Date","Institution","Amount"])
+        return pd.DataFrame(columns=["id", "Date", "Institution", "Amount"])
 
     df = pd.DataFrame(data)
-    # map your columns
-    df["Date"]        = pd.to_datetime(df["date"])
+    df["Date"] = pd.to_datetime(df["date"])
     df["Institution"] = df["institution"]
-    df["Amount"]      = df["amount"]
-    return df[["id","Date","Institution","Amount"]]
+    df["Amount"] = df["amount"]
+    return df[["id", "Date", "Institution", "Amount"]]
 
-def save_row(date, institution, amount):
+
+def save_row(email: str, date: datetime.date, institution: str, amount: float) -> None:
     payload = {
-        "user_email": user_email,
-        "date":       date.isoformat(),
+        "user_email": email,
+        "date": date.isoformat(),
         "institution": institution,
-        "amount":     float(amount)
+        "amount": float(amount),
     }
-    try:
-        # actually insert into Supabase
-        resp = supabase.table("contributions").insert(payload).execute()
-        st.success("✅ Transaction recorded!")
-        
-        
-    except Exception as e:
-        st.error(f"❌ Insert failed: {e}")
-        st.error(f"Payload was: {payload}")
-        raise
-def delete_row(row_id):
-    supabase.table("contributions") \
-            .delete() \
-            .eq("id", row_id) \
-            .eq("user_email", user_email) \
-            .execute()
+    supabase.table("contributions").insert(payload).execute()
 
-def clear_all_data():
-    supabase.table("contributions") \
-            .delete() \
-            .eq("user_email", user_email) \
-            .execute()
 
-# ---------------------
-# Helper Functions
-def get_total_limit(start_year):
-    current_year = datetime.datetime.now().year
-    return sum([get_tfsa_limit_for_year(y) for y in range(start_year, current_year + 1)])
-
-def draw_contribution_bar_plotly(contributed, limit, withdrawal):
-    percent_used = (contributed / limit) * 100 if limit > 0 else 0
-    remaining = max(limit - contributed, 0)
-
-    fig = go.Figure()
-
-    fig.add_trace(go.Bar(
-        x=["TFSA Room"],
-        y=[limit],
-        marker_color='lightgrey',
-        width=[0.4],
-        opacity=0.3,
-        name="Limit",
-        hoverinfo='skip'
-    ))
-
-    fig.add_trace(go.Bar(
-        x=["TFSA Room"],
-        y=[contributed],
-        marker_color='crimson',
-        width=[0.4],
-        name="Contributed",
-        text=f"{percent_used:.1f}%",
-        textposition="inside",
-        hovertemplate=f"Deposited: ${contributed:,.2f}<br>Limit: ${limit:,.2f}<extra></extra>"
-    ))
-
-    fig.update_layout(
-        title="TFSA Contribution Progress",
-        barmode="overlay",
-        yaxis=dict(title="Amount ($)", range=[0, limit]),
-        xaxis=dict(showticklabels=False),
-        plot_bgcolor='rgba(0,0,0,0)',
-        paper_bgcolor='rgba(0,0,0,0)',
-        height=450,
-        margin=dict(l=40, r=20, t=40, b=40)
+def delete_row(email: str, row_id: int) -> None:
+    (
+        supabase.table("contributions")
+        .delete()
+        .eq("id", row_id)
+        .eq("user_email", email)
+        .execute()
     )
 
-    col1, col2 = st.columns([2, 1])
-    with col1:
-        st.plotly_chart(fig, use_container_width=True)
-    with col2:
-        st.markdown(f"""
-            <div style='font-size: 18px; padding-top: 60px;'>
-                <b>Total Room:</b> ${limit:,.2f}<br><br>
-                <b>Deposited:</b> ${contributed:,.2f}<br><br>
-                <b>Withdrawal:</b> ${withdrawal:,.2f}<br><br>
-                <b>Remaining:</b> ${remaining:,.2f}<br><br>
-                <b>Used:</b> {percent_used:.1f}%
-            </div>
-        """, unsafe_allow_html=True)
 
-# ---------------------
-# Main App
+def clear_all_data(email: str) -> None:
+    supabase.table("contributions").delete().eq("user_email", email).execute()
+
+
+def get_total_limit(start_year: int) -> int:
+    current_year = datetime.datetime.now().year
+    return sum(get_tfsa_limit_for_year(y) for y in range(start_year, current_year + 1))
+
+
+def build_progress_chart(contributed: float, limit: float) -> go.Figure:
+    percent_used = (contributed / limit) * 100 if limit else 0
+
+    fig = go.Figure()
+    fig.add_trace(
+        go.Bar(
+            x=["Contribution Room"],
+            y=[limit],
+            marker_color="#E5E7EB",
+            hoverinfo="skip",
+            name="Total Room",
+            width=[0.45],
+        )
+    )
+    fig.add_trace(
+        go.Bar(
+            x=["Contribution Room"],
+            y=[contributed],
+            marker_color="#0F766E",
+            text=f"{percent_used:.1f}% used",
+            textposition="inside",
+            hovertemplate="Used: $%{y:,.2f}<extra></extra>",
+            name="Used",
+            width=[0.45],
+        )
+    )
+
+    fig.update_layout(
+        barmode="overlay",
+        height=350,
+        margin=dict(l=12, r=12, t=12, b=12),
+        xaxis=dict(showgrid=False, showticklabels=False),
+        yaxis=dict(title="CAD", showgrid=True, gridcolor="#E5E7EB"),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    )
+    return fig
+
+
+def apply_app_style() -> None:
+    st.markdown(
+        """
+        <style>
+            .block-container {padding-top: 2rem; padding-bottom: 2rem;}
+            .app-title {font-size: 2rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 0.25rem;}
+            .app-subtitle {color: #4B5563; margin-bottom: 1.25rem;}
+            .section-card {
+                border: 1px solid #E5E7EB;
+                border-radius: 14px;
+                padding: 1rem;
+                background: #FFFFFF;
+            }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+apply_app_style()
+
 if "user_email" not in st.session_state:
     st.session_state.user_email = ""
 
-# Text input bound to session state
+st.markdown('<div class="app-title">TFSA Tracker</div>', unsafe_allow_html=True)
+st.markdown(
+    '<div class="app-subtitle">Simple, clear tracking for your TFSA contribution room.</div>',
+    unsafe_allow_html=True,
+)
+
 user_email = st.text_input(
-    "Enter your email to load your TFSA data",
-    value=st.session_state.user_email
+    "Email", value=st.session_state.user_email, placeholder="name@email.com"
 ).strip().lower()
 st.session_state.user_email = user_email
 
 if not user_email:
+    st.info("Enter your email to load your profile.")
     st.stop()
+
 init_year = load_start_year(user_email)
 current_year = datetime.datetime.now().year
 years = list(range(BASE_TFSA_YEAR, current_year + 1))
 default_idx = years.index(init_year) if init_year in years else 0
 
-start_year = st.selectbox(
-    "What year did you become eligible for TFSA?",
-    years,
-    index=default_idx
-)
+controls_col1, controls_col2 = st.columns([2, 1])
+with controls_col1:
+    start_year = st.selectbox(
+        "TFSA eligibility year",
+        years,
+        index=default_idx,
+        help="The first year you were eligible for TFSA contribution room.",
+    )
+with controls_col2:
+    st.markdown("<div style='height: 1.9rem'></div>", unsafe_allow_html=True)
+    if st.button("Refresh data", use_container_width=True):
+        st.rerun()
 
-# only save if they actually changed it:
 if start_year != init_year:
     save_start_year(user_email, start_year)
-st.title("TFSA Contribution Tracker")
-
 
 limit = get_total_limit(start_year)
-st.write(f"Your total TFSA room based on CRA limits: **${limit:,}**")
-
-# Form to add contribution
-with st.form("Add Transaction"):
-    date = st.date_input("Date", datetime.date.today())
-    transaction_type = st.selectbox("Type", ["Deposit", "Withdrawal"])
-    institution    = st.text_input("Institution", "Wealthsimple")
-    amount         = st.number_input("Amount ($)", min_value=0.0, step=100.0)
-    submitted      = st.form_submit_button("Add")
-
-    if submitted:
-        signed_amount = amount if transaction_type == "Deposit" else -amount
-        save_row(date, institution, signed_amount)
-        # No further st.stop() here; save_row handles the rerun/stop.
-st_autorefresh(interval=3_0000, limit=None, key="datarefresher")
-# Load and format data
-df = load_data()
+df = load_data(user_email)
 df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
-df = df.dropna(subset=["Date"])
+df = df.dropna(subset=["Date"]).copy()
 df["Year"] = df["Date"].dt.year
 df.sort_values("Date", ascending=False, inplace=True)
 
-# Contribution logic
 deposits_by_year = df[df["Amount"] > 0].groupby("Year")["Amount"].sum()
 withdrawals_by_year = df[df["Amount"] < 0].groupby("Year")["Amount"].sum().abs()
 
-room_used = 0
-carry_forward = 0
+room_used = deposits_by_year.sum()
+total_withdrawals = withdrawals_by_year.sum()
+withdrawals_prior_to_current = withdrawals_by_year.loc[
+    withdrawals_by_year.index < current_year
+].sum()
+remaining_room = max(limit + withdrawals_prior_to_current - room_used, 0)
 
-for year in range(start_year, current_year + 1):
-    limit_year = get_tfsa_limit_for_year(year)
-    deposit = deposits_by_year.get(year, 0)
-    withdrawal = withdrawals_by_year.get(year - 1, 0) if year > start_year else 0
+m1, m2, m3, m4 = st.columns(4)
+m1.metric("Total room", f"${limit:,.0f}")
+m2.metric("Contributed", f"${room_used:,.0f}")
+m3.metric("Withdrawn", f"${total_withdrawals:,.0f}")
+m4.metric("Remaining", f"${remaining_room:,.0f}")
 
-    room_this_year = limit_year + carry_forward + withdrawal
-    room_used += deposit
-    carry_forward = max(room_this_year - deposit, 0)
+chart_col, action_col = st.columns([2, 1])
+with chart_col:
+    st.markdown("#### Contribution Overview")
+    st.plotly_chart(build_progress_chart(room_used, limit), use_container_width=True)
+    if room_used > limit:
+        st.error("Potential over-contribution detected. Please review your records.")
 
-# Show summary
-current_year_deposits = deposits_by_year.get(current_year, 0)
-room_remaining = limit + withdrawals_by_year.loc[withdrawals_by_year.index < current_year].sum() - room_used
+with action_col:
+    st.markdown("#### Add transaction")
+    with st.form("add_transaction", clear_on_submit=True):
+        date = st.date_input("Date", datetime.date.today())
+        transaction_type = st.radio("Type", ["Deposit", "Withdrawal"], horizontal=True)
+        institution = st.text_input("Institution", "Wealthsimple")
+        amount = st.number_input("Amount (CAD)", min_value=0.0, step=100.0)
+        submitted = st.form_submit_button("Save", use_container_width=True)
 
-st.subheader("Contribution Overview")
-draw_contribution_bar_plotly(room_used, limit, withdrawals_by_year.sum())
+        if submitted:
+            signed_amount = amount if transaction_type == "Deposit" else -amount
+            try:
+                save_row(user_email, date, institution, signed_amount)
+                st.success("Transaction recorded.")
+                st.rerun()
+            except Exception as exc:
+                st.error(f"Could not save transaction: {exc}")
 
-if room_used > limit:
-    st.error("You have OVER-CONTRIBUTED to your TFSA")
+st.markdown("#### Transaction history")
 
-# Show transaction table
-st.subheader("All Transactions")
-st.dataframe(df[["Date", "Institution", "Amount"]])
+if df.empty:
+    st.info("No transactions yet.")
+else:
+    st.dataframe(
+        df[["Date", "Institution", "Amount"]],
+        use_container_width=True,
+        hide_index=True,
+    )
 
-# Deletion options
-if not df.empty:
-    delete_label = st.selectbox(
-    "Select a transaction to delete",
-    df.apply(lambda r: f"{r['Date'].date()} – {r['Institution']} – ${r['Amount']}", axis=1)
-)
-# Delete one row
-if st.button("Delete Selected Row"):
-    row = df[
-        df.apply(
-            lambda r: f"{r['Date'].date()} – {r['Institution']} – ${r['Amount']}",
-            axis=1
-        ) == delete_label
-    ].iloc[0]
-    delete_row(row["id"])
-    st.success("Deleted!")
-    st_autorefresh(interval=1_000, limit=None, key="datarefresher2")
-    
+    options = df.apply(
+        lambda r: f"{r['Date'].date()} • {r['Institution']} • ${r['Amount']:,.2f}", axis=1
+    ).tolist()
 
-# Clear all data (now at top‐level, not inside the delete block)
-if st.button("Clear All Data"):
-    clear_all_data()
-    st.success("All data cleared!")
-    st_autorefresh(interval=1_000, limit=None, key="datarefresher3")
+    del_col1, del_col2 = st.columns([3, 1])
+    with del_col1:
+        delete_label = st.selectbox("Select transaction to delete", options)
+    with del_col2:
+        st.markdown("<div style='height: 1.8rem'></div>", unsafe_allow_html=True)
+        if st.button("Delete selected", use_container_width=True):
+            row = df[
+                df.apply(
+                    lambda r: f"{r['Date'].date()} • {r['Institution']} • ${r['Amount']:,.2f}",
+                    axis=1,
+                )
+                == delete_label
+            ].iloc[0]
+            delete_row(user_email, int(row["id"]))
+            st.success("Transaction deleted.")
+            st.rerun()
 
+if st.button("Clear all transactions", type="secondary"):
+    clear_all_data(user_email)
+    st.success("All transactions cleared.")
+    st.rerun()
