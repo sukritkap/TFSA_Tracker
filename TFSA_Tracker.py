@@ -16,7 +16,9 @@ SUPABASE_KEY = os.environ["SUPABASE_KEY"].strip()
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # ---------------------
-# Define annual TFSA limits
+# Define annual TFSA limits published by CRA.
+# For years not yet listed here, we reuse the latest known limit so the app
+# continues to roll forward automatically without requiring a code change.
 TFSA_LIMITS = {
     2009: 5000, 2010: 5000, 2011: 5000,
     2012: 5000, 2013: 5500, 2014: 5500,
@@ -25,6 +27,17 @@ TFSA_LIMITS = {
     2021: 6000, 2022: 6000, 2023: 6500,
     2024: 7000, 2025: 7000
 }
+
+BASE_TFSA_YEAR = min(TFSA_LIMITS.keys())
+
+
+def get_tfsa_limit_for_year(year):
+    if year in TFSA_LIMITS:
+        return TFSA_LIMITS[year]
+    if year > max(TFSA_LIMITS.keys()):
+        latest_known_year = max(TFSA_LIMITS.keys())
+        return TFSA_LIMITS[latest_known_year]
+    return 0
 
 # ---------------------
 # Supabase Data Functions
@@ -96,7 +109,7 @@ def clear_all_data():
 # Helper Functions
 def get_total_limit(start_year):
     current_year = datetime.datetime.now().year
-    return sum([TFSA_LIMITS.get(y, 0) for y in range(start_year, current_year + 1)])
+    return sum([get_tfsa_limit_for_year(y) for y in range(start_year, current_year + 1)])
 
 def draw_contribution_bar_plotly(contributed, limit, withdrawal):
     percent_used = (contributed / limit) * 100 if limit > 0 else 0
@@ -165,7 +178,8 @@ st.session_state.user_email = user_email
 if not user_email:
     st.stop()
 init_year = load_start_year(user_email)
-years = list(TFSA_LIMITS.keys())
+current_year = datetime.datetime.now().year
+years = list(range(BASE_TFSA_YEAR, current_year + 1))
 default_idx = years.index(init_year) if init_year in years else 0
 
 start_year = st.selectbox(
@@ -203,8 +217,6 @@ df = df.dropna(subset=["Date"])
 df["Year"] = df["Date"].dt.year
 df.sort_values("Date", ascending=False, inplace=True)
 
-current_year = datetime.datetime.now().year
-
 # Contribution logic
 deposits_by_year = df[df["Amount"] > 0].groupby("Year")["Amount"].sum()
 withdrawals_by_year = df[df["Amount"] < 0].groupby("Year")["Amount"].sum().abs()
@@ -213,7 +225,7 @@ room_used = 0
 carry_forward = 0
 
 for year in range(start_year, current_year + 1):
-    limit_year = TFSA_LIMITS.get(year, 0)
+    limit_year = get_tfsa_limit_for_year(year)
     deposit = deposits_by_year.get(year, 0)
     withdrawal = withdrawals_by_year.get(year - 1, 0) if year > start_year else 0
 
